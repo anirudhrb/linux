@@ -110,6 +110,9 @@
 /* Recommend using the newer ExProcessorMasks interface */
 #define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED		BIT(11)
 
+/* Indicates that the hypervisor is nested within a Hyper-V partition. */
+#define HV_X64_NESTED_HYPERVISOR			BIT(12)
+
 /* Recommend using enlightened VMCS */
 #define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED		BIT(14)
 
@@ -158,6 +161,7 @@ enum hv_isolation_type {
 
 /* MSR used to provide vcpu index */
 #define HV_REGISTER_VP_INDEX			0x40000002
+#define HV_REGISTER_NESTED_VP_INDEX		0x40001002
 
 /* MSR used to reset the guest OS. */
 #define HV_X64_MSR_RESET			0x40000003
@@ -206,6 +210,14 @@ enum hv_isolation_type {
 #define HV_REGISTER_SINT13			0x4000009D
 #define HV_REGISTER_SINT14			0x4000009E
 #define HV_REGISTER_SINT15			0x4000009F
+
+/* Define synthetic interrupt controller MSRs for nested root */
+#define HV_REGISTER_NESTED_SCONTROL		0x40001080
+#define HV_REGISTER_NESTED_SVERSION		0x40001081
+#define HV_REGISTER_NESTED_SIEFP		0x40001082
+#define HV_REGISTER_NESTED_SIMP 		0x40001083
+#define HV_REGISTER_NESTED_EOM			0x40001084
+#define HV_REGISTER_NESTED_SINT0		0x40001090
 
 /*
  * Synthetic Timer MSRs. Four timers per vcpu.
@@ -332,7 +344,8 @@ struct hv_nested_enlightenments_control {
 		__u32 reserved:31;
 	} features;
 	struct {
-		__u32 reserved;
+		__u32 inter_partition_comm:1;
+		__u32 reserved:31;
 	} hypercallControls;
 } __packed;
 

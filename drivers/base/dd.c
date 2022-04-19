@@ -538,7 +538,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 		return ret;
 
 	atomic_inc(&probe_count);
-	pr_debug("bus: '%s': %s: probing driver %s with device %s\n",
+	pr_info("bus: '%s': %s: probing driver %s with device %s\n",
 		 drv->bus->name, __func__, drv->name, dev_name(dev));
 	if (!list_empty(&dev->devres_head)) {
 		dev_crit(dev, "Resources present before probing\n");
@@ -674,6 +674,8 @@ pinctrl_bind_failed:
 	ret = 0;
 done:
 	atomic_dec(&probe_count);
+	pr_info("bus: '%s': %s: done probing driver %s with device %s\n",
+		 drv->bus->name, __func__, drv->name, dev_name(dev));
 	wake_up_all(&probe_waitqueue);
 	return ret;
 }

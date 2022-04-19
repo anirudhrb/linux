@@ -603,6 +603,8 @@ static void put_hvpcibus(struct hv_pcibus_device *hv_pcibus);
 static int wait_for_response(struct hv_device *hdev,
 			     struct completion *comp)
 {
+	unsigned int times = 0;
+
 	while (true) {
 		if (hdev->channel->rescind) {
 			dev_warn_once(&hdev->device, "The device is gone.\n");
@@ -611,6 +613,12 @@ static int wait_for_response(struct hv_device *hdev,
 
 		if (wait_for_completion_timeout(comp, HZ / 10))
 			break;
+
+		++times;
+		if (times >= 50) {
+			pr_info("hv_pci: timed out waiting for response\n");
+			return -ETIMEDOUT;
+		}
 	}
 
 	return 0;
@@ -2567,8 +2575,13 @@ static int hv_pci_protocol_negotiation(struct hv_device *hdev,
 				sizeof(struct pci_version_request),
 				(unsigned long)pkt, VM_PKT_DATA_INBAND,
 				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-		if (!ret)
+		if (!ret) {
+			pr_info("hv_pci: start wait for response v=%u\n",
+					version[i]);
 			ret = wait_for_response(hdev, &comp_pkt.host_event);
+			pr_info("hv_pci: wait for response ended v=%u\n",
+					version[i]);
+		}
 
 		if (ret) {
 			dev_err(&hdev->device,
@@ -3111,6 +3124,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 
 	ret = vmbus_open(hdev->channel, pci_ring_size, pci_ring_size, NULL, 0,
 			 hv_pci_onchannelcallback, hbus);
+	pr_info("hv_pci: vmbus open ret=%d\n", ret);
 	if (ret)
 		goto destroy_wq;
 
@@ -3118,6 +3132,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 
 	ret = hv_pci_protocol_negotiation(hdev, pci_protocol_versions,
 					  ARRAY_SIZE(pci_protocol_versions));
+	pr_info("hv_pci: protocol negotiation ret=%d\n", ret);
 	if (ret)
 		goto close;
 

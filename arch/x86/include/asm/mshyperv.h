@@ -28,6 +28,11 @@ static inline u64 hv_get_register(unsigned int reg)
 	return value;
 }
 
+static inline int hv_try_get_register(unsigned int reg, u64 *val)
+{
+	return rdmsrl_safe(reg, val);
+}
+
 #define hv_get_raw_timer() rdtsc_ordered()
 
 void hyperv_vector_handler(struct pt_regs *regs);
@@ -53,6 +58,7 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 	u64 output_address = output ? virt_to_phys(output) : 0;
 	u64 hv_status;
 
+	// pr_info("Hyper-V: hypercall %llx\n", control);
 #ifdef CONFIG_X86_64
 	if (!hv_hypercall_pg)
 		return U64_MAX;
@@ -85,11 +91,18 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 	return hv_status;
 }
 
+/* Hypercall to the L0 hypervisor */
+static inline u64 hv_do_nested_hypercall(u64 control, void *input, void *output)
+{
+	return hv_do_hypercall(control | HV_HYPERCALL_NESTED_BIT, input,
+			output);
+}
+
 /* Fast hypercall with 8 bytes of input and no output */
 static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 {
 	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;
-
+	// pr_info("Hyper-V: fast hypercall 8 %u\n", code);
 #ifdef CONFIG_X86_64
 	{
 		__asm__ __volatile__(CALL_NOSPEC
@@ -121,6 +134,7 @@ static inline u64 hv_do_fast_hypercall16(u16 code, u64 input1, u64 input2)
 {
 	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;
 
+	// pr_info("Hyper-V: fast hypercall 16 %u\n", code);
 #ifdef CONFIG_X86_64
 	{
 		__asm__ __volatile__("mov %4, %%r8\n"
@@ -174,6 +188,7 @@ int hyperv_fill_flush_guest_mapping_list(
 int hv_status_to_errno(u64 hv_status);
 
 extern bool hv_root_partition;
+extern bool hv_nested;
 
 #ifdef CONFIG_X86_64
 void hv_apic_init(void);

@@ -57,6 +57,7 @@ struct ms_hyperv_info {
 extern struct ms_hyperv_info ms_hyperv;
 
 extern u64 hv_do_hypercall(u64 control, void *inputaddr, void *outputaddr);
+extern u64 hv_do_nested_hypercall(u64 control, void *inputaddr, void *outputaddr);
 extern u64 hv_do_fast_hypercall8(u16 control, u64 input8);
 
 /* Helper functions that provide a consistent pattern for checking Hyper-V hypercall status. */
@@ -155,12 +156,16 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 	 * no empty slot
 	 */
 	if (msg->header.message_flags.msg_pending) {
+		unsigned int reg_eom = HV_REGISTER_EOM;
+
+		if (hv_root_partition && hv_nested)
+			reg_eom = HV_REGISTER_NESTED_EOM;
 		/*
 		 * This will cause message queue rescan to
 		 * possibly deliver another msg from the
 		 * hypervisor
 		 */
-		hv_set_register(HV_REGISTER_EOM, 0);
+		hv_set_register(reg_eom, 0);
 	}
 }
 

@@ -37,6 +37,10 @@
 bool hv_root_partition;
 EXPORT_SYMBOL_GPL(hv_root_partition);
 
+/* Are we in a nested hypervisor?  */
+bool hv_nested;
+EXPORT_SYMBOL_GPL(hv_nested);
+
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
 
@@ -54,6 +58,21 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_callback)
 	inc_irq_stat(irq_hv_callback_count);
 	if (mshv_handler)
 		mshv_handler();
+
+	if (vmbus_handler)
+		vmbus_handler();
+
+	if (ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED)
+		ack_APIC_irq();
+
+	set_irq_regs(old_regs);
+}
+
+DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_nested_root_intr)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	inc_irq_stat(irq_hv_callback_count);
 
 	if (vmbus_handler)
 		vmbus_handler();
@@ -295,6 +314,11 @@ static void __init ms_hyperv_init_platform(void)
 	pr_debug("Hyper-V: max %u virtual processors, %u logical processors\n",
 		 ms_hyperv.max_vp_index, ms_hyperv.max_lp_index);
 
+	if (ms_hyperv.hints & HV_X64_NESTED_HYPERVISOR) {
+		hv_nested = true;
+		pr_info("Hyper-V: running in nested hypervisor\n");
+	}
+
 	/*
 	 * Check CPU management privilege.
 	 *
@@ -414,6 +438,7 @@ static void __init ms_hyperv_init_platform(void)
 	x86_platform.apic_post_init = hyperv_init;
 	hyperv_setup_mmu_ops();
 	/* Setup the IDT for hypervisor callback */
+	pr_info("Hyper-V: setting up IDT on CPU %u\n", smp_processor_id());
 	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, asm_sysvec_hyperv_callback);
 
 	/* Setup the IDT for reenlightenment notifications */

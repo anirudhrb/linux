@@ -495,6 +495,7 @@ static void vmbus_add_channel_work(struct work_struct *work)
 	struct vmbus_channel *primary_channel = newchannel->primary_channel;
 	int ret;
 
+	pr_info("vmbus add channel work\n");
 	/*
 	 * This state is used to indicate a successful open
 	 * so that when we do close the channel normally, we
@@ -578,6 +579,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	struct workqueue_struct *wq;
 	bool fnew = true;
 
+	pr_info("vmbus process offer\n");
 	/*
 	 * Synchronize vmbus_process_offer() and CPU hotplugging:
 	 *
@@ -970,6 +972,7 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 
 	offer = (struct vmbus_channel_offer_channel *)hdr;
 
+	pr_info("vmbus: got offer\n");
 	trace_vmbus_onoffer(offer);
 
 	if (!vmbus_is_valid_device(&offer->offer.if_type)) {

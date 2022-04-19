@@ -772,6 +772,9 @@ static const struct hv_vmbus_device_id *hv_vmbus_get_id(struct hv_driver *drv,
 	if (!id && dev->driver_override)
 		id = &vmbus_device_null;
 
+	if (!id)
+		pr_info("vmbus: GUID %pUl doesn't match driver %s\n", guid,
+				drv->name);
 	return id;
 }
 
@@ -889,6 +892,11 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	if (hv_vmbus_get_id(drv, hv_dev))
 		return 1;
 
+	if (hv_dev->driver_override) {
+		pr_info("vmbus: driver override set\n");
+	}
+	pr_info("vmbus: no match driver=%s device=%s\n", drv->name,
+			device->init_name);
 	return 0;
 }
 
@@ -1351,7 +1359,8 @@ static void vmbus_isr(void)
 	 * in which events and messages are checked in Windows guests on
 	 * Hyper-V, and the Windows team suggested we do the same.
 	 */
-
+	// pr_info("vmbus proto = %u, event flags=%lx\n", vmbus_proto_version,
+//			*(event->flags));
 	if ((vmbus_proto_version == VERSION_WS2008) ||
 		(vmbus_proto_version == VERSION_WIN7)) {
 
@@ -2090,6 +2099,8 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 
 	dev_set_name(&child_device_obj->device, "%pUl",
 		     &child_device_obj->channel->offermsg.offer.if_instance);
+	pr_info("vmbus_device_register: %pUl\n",
+			&child_device_obj->channel->offermsg.offer.if_instance);
 
 	child_device_obj->device.bus = &hv_bus;
 	child_device_obj->device.parent = &hv_acpi_dev->dev;
@@ -2162,6 +2173,7 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 	struct resource **old_res = &hyperv_mmio;
 	struct resource **prev_res = NULL;
 	struct resource r;
+	int i;
 
 	switch (res->type) {
 
@@ -2195,6 +2207,14 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 		vmbus_interrupt = res->data.extended_irq.interrupts[0];
 		/* Linux IRQ number */
 		vmbus_irq = r.start;
+		return AE_OK;
+
+	case ACPI_RESOURCE_TYPE_IRQ:
+		pr_info("Hyper-V: ACPI IRQ: %u\n", res->data.irq.interrupt_count);
+		for (i = 0; i < res->data.irq.interrupt_count; ++i) {
+			pr_info("Hyper-V: interrupt %u\n",
+					res->data.irq.interrupts[i]);
+		}
 		return AE_OK;
 
 	default:
@@ -2695,8 +2715,10 @@ static int __init hv_acpi_init(void)
 	if (!hv_is_hyperv_initialized())
 		return -ENODEV;
 
-	if (hv_root_partition)
+	if (hv_root_partition && !hv_nested)
 		return 0;
+
+	pr_info("Hyper-V: ACPI init not skipped\n");
 
 	init_completion(&probe_event);
 
@@ -2714,16 +2736,21 @@ static int __init hv_acpi_init(void)
 		goto cleanup;
 	}
 
-	/*
-	 * If we're on an architecture with a hardcoded hypervisor
-	 * vector (i.e. x86/x64), override the VMbus interrupt found
-	 * in the ACPI tables. Ensure vmbus_irq is not set since the
-	 * normal Linux IRQ mechanism is not used in this case.
-	 */
+	if (hv_nested) {
+		vmbus_interrupt = 0x31;
+		vmbus_irq = -1;
+	} else {
+		/*
+		 * If we're on an architecture with a hardcoded hypervisor
+		 * vector (i.e. x86/x64), override the VMbus interrupt found
+		 * in the ACPI tables. Ensure vmbus_irq is not set since the
+		 * normal Linux IRQ mechanism is not used in this case.
+		 */
 #ifdef HYPERVISOR_CALLBACK_VECTOR
-	vmbus_interrupt = HYPERVISOR_CALLBACK_VECTOR;
-	vmbus_irq = -1;
+		vmbus_interrupt = HYPERVISOR_CALLBACK_VECTOR;
+		vmbus_irq = -1;
 #endif
+	}
 
 	hv_debug_init();
 

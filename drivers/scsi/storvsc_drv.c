@@ -1292,6 +1292,7 @@ static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size,
 	struct vmstorage_channel_properties props;
 	int ret;
 
+	pr_info("storvsc connecting to vsp\n");
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
 	/*
@@ -1310,7 +1311,9 @@ static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size,
 	if (ret != 0)
 		return ret;
 
+	pr_info("Succeeded connect to vsp\n");
 	ret = storvsc_channel_init(device, is_fc);
+	pr_info("Channel init finished with ret=%d\n", ret);
 
 	return ret;
 }
@@ -1907,7 +1910,7 @@ static int storvsc_probe(struct hv_device *device,
 	 * Based on the windows host we are running on,
 	 * set state to properly communicate with the host.
 	 */
-
+	pr_info("storvsc_probe: begin\n");
 	if (vmbus_proto_version < VERSION_WIN8) {
 		max_luns_per_target = STORVSC_IDE_MAX_LUNS_PER_TARGET;
 		max_targets = STORVSC_IDE_MAX_TARGETS;
@@ -2077,6 +2080,7 @@ err_out1:
 
 err_out0:
 	scsi_host_put(host);
+	pr_info("storvsc_probe: errored out %d\n", ret);
 	return ret;
 }
 

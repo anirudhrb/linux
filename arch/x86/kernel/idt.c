@@ -144,6 +144,7 @@ static const __initconst struct idt_data apic_idts[] = {
 # endif
 	INTG(SPURIOUS_APIC_VECTOR,		asm_sysvec_spurious_apic_interrupt),
 	INTG(ERROR_APIC_VECTOR,			asm_sysvec_error_interrupt),
+	INTG(0x31,				asm_sysvec_hyperv_nested_root_intr),
 #endif
 };
 
