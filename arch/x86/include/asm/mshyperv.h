@@ -98,11 +98,13 @@ static inline u64 hv_do_nested_hypercall(u64 control, void *input, void *output)
 			output);
 }
 
-/* Fast hypercall with 8 bytes of input and no output */
-static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
+static inline u64 __hv_do_fast_hypercall8(u16 code, u64 input1, bool nested)
 {
 	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;
-	// pr_info("Hyper-V: fast hypercall 8 %u\n", code);
+
+	if (nested)
+		control |= HV_HYPERCALL_NESTED_BIT;
+
 #ifdef CONFIG_X86_64
 	{
 		__asm__ __volatile__(CALL_NOSPEC
@@ -126,7 +128,18 @@ static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 				      : "cc", "edi", "esi");
 	}
 #endif
-		return hv_status;
+	return hv_status;
+}
+
+/* Fast hypercall with 8 bytes of input and no output */
+static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
+{
+	return __hv_do_fast_hypercall8(code, input1, false);
+}
+
+static inline u64 hv_do_nested_fast_hypercall8(u16 code, u64 input1)
+{
+	return __hv_do_fast_hypercall8(code, input1, true);
 }
 
 /* Fast hypercall with 16 bytes of input */
@@ -189,6 +202,8 @@ int hv_status_to_errno(u64 hv_status);
 
 extern bool hv_root_partition;
 extern bool hv_nested;
+
+#define hv_nested_root (hv_nested && hv_root_partition)
 
 #ifdef CONFIG_X86_64
 void hv_apic_init(void);
