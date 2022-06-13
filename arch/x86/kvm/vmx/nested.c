@@ -6656,6 +6656,9 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps)
 		      msrs->secondary_ctls_low,
 		      msrs->secondary_ctls_high);
 
+	if (!kvm_has_tsc_control)
+		msrs->secondary_ctls_high &= ~SECONDARY_EXEC_TSC_SCALING;
+
 	msrs->secondary_ctls_low = 0;
 	msrs->secondary_ctls_high &=
 		SECONDARY_EXEC_DESC |
@@ -6667,8 +6670,7 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps)
 		SECONDARY_EXEC_RDRAND_EXITING |
 		SECONDARY_EXEC_ENABLE_INVPCID |
 		SECONDARY_EXEC_RDSEED_EXITING |
-		SECONDARY_EXEC_XSAVES |
-		SECONDARY_EXEC_TSC_SCALING;
+		SECONDARY_EXEC_XSAVES;
 
 	/*
 	 * We can emulate "VMCS shadowing," even if the hardware
