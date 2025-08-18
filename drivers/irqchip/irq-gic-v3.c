@@ -2106,6 +2106,8 @@ static int __init gic_init_bases(phys_addr_t dist_phys_base,
 	gic_smp_init();
 	gic_cpu_pm_init();
 
+	gicv3_nolpi = true;
+
 	if (gic_dist_supports_lpis()) {
 		its_init(handle, &gic_data.rdists, gic_data.domain, dist_prio_irq);
 		its_cpu_init();
