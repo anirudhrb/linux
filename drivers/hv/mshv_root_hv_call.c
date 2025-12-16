@@ -194,11 +194,15 @@ static int hv_do_map_gpa_hcall(u64 partition_id, u64 gfn, u64 page_struct_count,
 		return -EINVAL;
 
 	if (flags & HV_MAP_GPA_LARGE_PAGE) {
-		if (mmio_spa)
+		if (mmio_spa) {
+			pr_info("%s: large page mmio spa\n", __func__);
 			return -EINVAL;
+		}
 
-		if (!HV_PAGE_COUNT_2M_ALIGNED(page_count))
+		if (!HV_PAGE_COUNT_2M_ALIGNED(page_count)) {
+			pr_err("%s: large page not 2m aligned\n", __func__);
 			return -EINVAL;
+		}
 
 		large_shift = HV_HYP_LARGE_PAGE_SHIFT - HV_HYP_PAGE_SHIFT;
 		page_count >>= large_shift;
@@ -223,6 +227,7 @@ static int hv_do_map_gpa_hcall(u64 partition_id, u64 gfn, u64 page_struct_count,
 				u64 index = (done + i) << large_shift;
 
 				if (index >= page_struct_count) {
+					pr_err("%s: index >= page_struct_count\n", __func__);
 					ret = -EINVAL;
 					break;
 				}
@@ -242,11 +247,15 @@ static int hv_do_map_gpa_hcall(u64 partition_id, u64 gfn, u64 page_struct_count,
 		if (hv_result(status) == HV_STATUS_INSUFFICIENT_MEMORY) {
 			ret = hv_call_deposit_pages(NUMA_NO_NODE, partition_id,
 						    HV_MAP_GPA_DEPOSIT_PAGES);
-			if (ret)
+			if (ret) {
+				pr_err("%s: deposit failed, ret=%d\n", __func__, ret);
 				break;
+			}
 
 		} else if (!hv_result_success(status)) {
 			ret = hv_result_to_errno(status);
+			pr_err("%s: map failed, status=%llx, ret=%d, rep_count=%d, pt=%lld, base=%llx, flags=%x\n", __func__, status, ret,
+				rep_count, input_page->target_partition_id, input_page->target_gpa_base, flags);
 			break;
 		}
 
