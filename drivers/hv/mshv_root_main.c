@@ -2291,13 +2291,19 @@ static int __init mshv_parent_partition_init(void)
 			MSHV_HV_MAX_VERSION);
 	}
 
+	ret = mshv_synic_init();
+	if (ret) {
+		dev_err(dev, "Failed to initialize synic: %i\n", ret);
+		goto device_deregister;
+	}
+
 	mshv_root.synic_pages = alloc_percpu(struct hv_synic_pages);
 	if (!mshv_root.synic_pages) {
 		dev_err(dev, "Failed to allocate percpu synic page\n");
 		ret = -ENOMEM;
-		goto device_deregister;
+		goto synic_cleanup;
 	}
-
+	
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "mshv_synic",
 				mshv_synic_cpu_init,
 				mshv_synic_cpu_exit);
@@ -2337,6 +2343,8 @@ remove_cpu_state:
 	cpuhp_remove_state(mshv_cpuhp_online);
 free_synic_pages:
 	free_percpu(mshv_root.synic_pages);
+synic_cleanup:
+	mshv_synic_cleanup();
 device_deregister:
 	misc_deregister(&mshv_dev);
 	return ret;
@@ -2352,6 +2360,7 @@ static void __exit mshv_parent_partition_exit(void)
 		mshv_root_partition_exit();
 	cpuhp_remove_state(mshv_cpuhp_online);
 	free_percpu(mshv_root.synic_pages);
+	mshv_synic_cleanup();
 }
 
 module_init(mshv_parent_partition_init);
